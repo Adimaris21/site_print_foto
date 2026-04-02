@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Status comandă</title>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    firebase.initializeApp({
+      apiKey: "AIzaSyC-b9KS5OZ4ckOSEfAyLFm9QQuZqM9teO4",
+      authDomain: "print-foto-7409e.firebaseapp.com",
+      projectId: "print-foto-7409e"
+    });
+
+    const db = firebase.firestore();
+  </script>
+
+  <style>
+    body{
+      background:#0c1f2b;
+      color:white;
+      font-family:Arial;
+      text-align:center;
+      padding:50px;
+    }
+    input,button{
+      padding:10px;
+      border-radius:8px;
+      border:none;
+      margin:10px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h1>Status comandă</h1>
+
+<input type="text" id="orderId" placeholder="Introdu ID comandă">
+<button onclick="checkStatus()">Verifică</button>
+
+<div id="result"></div>
+
+<script>
+function checkStatus(){
+  let id = document.getElementById("orderId").value;
+
+  db.collection("comenzi").doc(id).get().then(doc=>{
+    if(doc.exists){
+      let data = doc.data();
+      document.getElementById("result").innerHTML =
+        "<h2>Status: " + data.status + "</h2>";
+    } else {
+      document.getElementById("result").innerHTML =
+        "<h2>Comanda nu există</h2>";
+    }
+  });
+}
+
+// AUTO din link
+const urlParams = new URLSearchParams(window.location.search);
+const id = urlParams.get("id");
+
+if(id){
+  document.getElementById("orderId").value = id;
+  checkStatus();
+}
+</script>
+
+</body>
+</html>

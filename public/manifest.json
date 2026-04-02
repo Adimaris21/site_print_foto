@@ -1,0 +1,16 @@
+{
+  "short_name": "PrintFoto",
+  "name": "Print Foto Târgu Mureș",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1042/1042339.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/index.html",
+  "display": "standalone",
+  "theme_color": "#121212",
+  "background_color": "#121212",
+  "gcm_sender_id": "103953800507"
+}

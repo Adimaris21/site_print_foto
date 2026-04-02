@@ -1,0 +1,11 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /comenzi/{orderId}/{allPaths=**} {
+      // Permite upload (create) și vizualizare (read)
+      allow create, read: if true;
+      // Blocăm ștergerea de către clienți
+      allow delete: if false;
+    }
+  }
+}

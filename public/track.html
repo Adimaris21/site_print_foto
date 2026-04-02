@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urmărire Comandă | Studio Foto</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+</head>
+<body style="justify-content: center;">
+    <style>
+        /* Stepper pentru status comanda */
+        .stepper { display: flex; justify-content: space-between; margin: 30px 0; position: relative; }
+        .stepper::before { content: ""; position: absolute; top: 15px; left: 0; right: 0; height: 2px; background: rgba(255,255,255,0.1); z-index: 0; }
+        .step { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; flex: 1; opacity: 0.3; transition: 0.3s; }
+        .step.active { opacity: 1; }
+        .step-icon { width: 32px; height: 32px; border-radius: 50%; background: #252525; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 14px; margin-bottom: 8px; }
+        .step.active .step-icon { background: var(--primary); color: #000; border-color: var(--primary); box-shadow: 0 0 10px var(--primary-glow); }
+        .step.active.on-hold .step-icon { background: #f7b731; border-color: #f7b731; box-shadow: 0 0 10px rgba(247, 183, 49, 0.5); }
+        .step-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); }
+        .step.active .step-label { color: var(--primary); }
+        .step.active.on-hold .step-label { color: #f7b731; }
+    </style>
+
+    <!-- Background Elements pentru consistență -->
+    <div class="bg-blob blob-1"></div>
+    <div class="bg-blob blob-2"></div>
+
+    <div class="container" style="max-width: 450px;">
+        <header>
+            <i class="fa-solid fa-magnifying-glass-location logo-icon" style="font-size: 40px;"></i>
+            <h1 style="font-size: 24px; margin-top: 10px;">Status Comandă</h1>
+        </header>
+
+        <div id="trackCard" class="card" style="text-align: center; display: none; backdrop-filter: blur(15px); border: 1px solid rgba(0, 242, 255, 0.2);">
+            <p style="font-size: 11px; color: var(--text-dim); text-transform: uppercase;">Număr Comandă</p>
+            <div class="order-id-badge" id="orderIdLabel" style="font-size: 16px;">...</div>
+            
+            <div class="stepper">
+                <div class="step" id="step-primită">
+                    <div class="step-icon"><i class="fa-solid fa-envelope"></i></div>
+                    <div class="step-label">Primită</div>
+                </div>
+                <div class="step" id="step-acceptată">
+                    <div class="step-icon"><i class="fa-solid fa-check"></i></div>
+                    <div class="step-label">Acceptată</div>
+                </div>
+                <div class="step" id="step-în-lucru">
+                    <div class="step-icon"><i class="fa-solid fa-gears"></i></div>
+                    <div class="step-label">În lucru</div>
+                </div>
+                <div class="step" id="step-în-așteptare">
+                    <div class="step-icon"><i class="fa-solid fa-pause-circle"></i></div>
+                    <div class="step-label">În Așteptare</div>
+                </div>
+                <div class="step" id="step-finalizată">
+                    <div class="step-icon"><i class="fa-solid fa-circle-check"></i></div>
+                    <div class="step-label">Gata</div>
+                </div>
+            </div>
+
+            <p id="statusDescription" style="font-size: 14px; color: var(--text-dim); line-height: 1.6; padding: 0 10px;"></p>
+            
+            <button class="btn-submit" style="margin-top: 30px; font-size: 14px; background: rgba(255,255,255,0.1); color: #fff;" onclick="window.location.href='index.html'">
+                <i class="fa-solid fa-house"></i> Mergi la Prima Pagină
+            </button>
+        </div>
+
+        <div id="loading" class="card" style="text-align: center;">
+            <i class="fa-solid fa-spinner fa-spin" style="font-size: 30px; color: var(--primary);"></i>
+            <p style="margin-top: 15px; color: var(--text-dim);">Căutăm informațiile...</p>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyC-b9KS5OZ4ckOSEfAyLFm9QQuZqM9teO4",
+            authDomain: "print-foto-7409e.firebaseapp.com",
+            projectId: "print-foto-7409e",
+            storageBucket: "print-foto-7409e.firebasestorage.app"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderId = urlParams.get('id');
+
+        if (!orderId) {
+            document.getElementById('loading').innerHTML = "<i class='fa-solid fa-circle-exclamation' style='font-size:30px; color:var(--danger)'></i><h3 style='margin-top:15px'>ID Lipsă</h3><p style='font-size:13px; opacity:0.6'>Folosește link-ul primit la finalul comenzii.</p>";
+        } else {
+            db.collection("comenzi").doc(orderId).onSnapshot((doc) => {
+                document.getElementById('loading').style.display = 'none';
+                const card = document.getElementById('trackCard');
+                
+                if (doc.exists) {
+                    const data = doc.data();
+                    card.style.display = 'block';
+                    document.getElementById('orderIdLabel').innerText = orderId;
+                    
+                    const desc = document.getElementById('statusDescription');
+                    const status = (data.status || 'primită').toLowerCase();
+                    
+                    document.querySelectorAll('.step').forEach(s => s.classList.remove('active', 'on-hold'));
+                    
+                    // Definim fluxul normal (fără așteptare)
+                    const stages = ['primită', 'acceptată', 'în lucru', 'finalizată'];
+                    const currentIdx = stages.indexOf(status);
+                    
+                    stages.forEach((s, idx) => {
+                        if(currentIdx !== -1 && idx <= currentIdx) {
+                            const el = document.getElementById('step-' + s);
+                            if(el) el.classList.add('active');
+                        }
+                    });
+
+                    // Tratăm cazul special de așteptare (nu este un pas secvențial)
+                    if (status === 'în așteptare') {
+                        // Aprindem pașii de dinainte (până la acceptată)
+                        document.getElementById('step-primită').classList.add('active');
+                        document.getElementById('step-acceptată').classList.add('active');
+                        // Evidențiem special pasul de așteptare
+                        const holdStep = document.getElementById('step-în-așteptare');
+                        holdStep.classList.add('active', 'on-hold');
+                    }
+                    
+                    if (status === 'primită') {
+                        desc.innerHTML = "<i class='fa-solid fa-clock'></i> Am primit comanda ta! În curând un operator o va verifica.";
+                    } else if (status === 'acceptată') {
+                        desc.innerHTML = "<i class='fa-solid fa-check-double'></i> Comanda a fost acceptată de studio.";
+                    } else if (status === 'în lucru') {
+                        desc.innerHTML = "<i class='fa-solid fa-gears'></i> Fotografiile tale sunt acum în curs de printare.";
+                    } else if (status === 'în așteptare') {
+                        const reason = data.onHoldReason ? ` din cauza: <b>${data.onHoldReason}</b>` : '';
+                        desc.innerHTML = `<i class='fa-solid fa-pause-circle'></i> Comanda ta este momentan în așteptare${reason}. Te vom notifica când reintră în lucru.`;
+                    } else if (status === 'finalizată') {
+                        desc.innerHTML = "<i class='fa-solid fa-circle-check'></i> Pozele tale sunt gata! Te așteptăm să le ridici.";
+                    }
+                } else {
+                    document.getElementById('loading').innerHTML = "<i class='fa-solid fa-circle-xmark' style='font-size:30px; color:var(--danger)'></i><h3 style='margin-top:15px'>Comandă negăsită</h3><p style='font-size:13px; opacity:0.6'>ID-ul #" + orderId + " nu există în sistem.</p>";
+                }
+            });
+        }
+    </script>
+</body>
+</html>
